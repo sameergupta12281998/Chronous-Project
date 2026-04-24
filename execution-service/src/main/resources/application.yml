@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: execution-service
+  datasource:
+    url: ${EXECUTION_DB_URL:jdbc:postgresql://localhost:5432/execution_db}
+    username: ${EXECUTION_DB_USER:chronos}
+    password: ${EXECUTION_DB_PASSWORD:chronos}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+
+server:
+  port: ${EXECUTION_PORT:8084}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+chronos:
+  execution:
+    retry-poll-ms: 1000
+  security:
+    jwt:
+      secret: ${CHRONOS_JWT_SECRET:change-me-please-this-is-a-development-only-secret-32+}
+      issuer: chronos-identity
+      ttl-seconds: 3600
+
+logging:
+  pattern:
+    level: "%5p [corr=%X{correlationId:-}]"

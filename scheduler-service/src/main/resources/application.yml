@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: scheduler-service
+  datasource:
+    url: ${SCHEDULER_DB_URL:jdbc:postgresql://localhost:5432/scheduler_db}
+    username: ${SCHEDULER_DB_USER:chronos}
+    password: ${SCHEDULER_DB_PASSWORD:chronos}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+
+server:
+  port: ${SCHEDULER_PORT:8083}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+chronos:
+  scheduler:
+    scan-interval-ms: 1000
+
+logging:
+  pattern:
+    level: "%5p [corr=%X{correlationId:-}]"

@@ -1,0 +1,6 @@
+chronos:
+  security:
+    jwt:
+      secret: test-secret-test-secret-test-secret-test-secret-1234
+      issuer: chronos-test
+      ttl-seconds: 3600

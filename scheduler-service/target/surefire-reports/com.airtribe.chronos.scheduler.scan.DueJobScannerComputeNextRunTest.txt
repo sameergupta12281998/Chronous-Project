@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.airtribe.chronos.scheduler.scan.DueJobScannerComputeNextRunTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.057 s -- in com.airtribe.chronos.scheduler.scan.DueJobScannerComputeNextRunTest
