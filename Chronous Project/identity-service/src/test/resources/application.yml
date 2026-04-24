@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:identity;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    locations: classpath:db/migration-h2
+
+chronos:
+  security:
+    jwt:
+      secret: test-secret-test-secret-test-secret-test-secret-1234
+      issuer: chronos-identity-test
+      ttl-seconds: 3600

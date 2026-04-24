@@ -1,8 +1,0 @@
-/Users/sameergupta/Documents/GitHub/Chronous Project/scheduler-service/src/main/java/com/airtribe/chronos/scheduler/SchedulerServiceApplication.java
-/Users/sameergupta/Documents/GitHub/Chronous Project/scheduler-service/src/main/java/com/airtribe/chronos/scheduler/config/SchedulerKafkaConfig.java
-/Users/sameergupta/Documents/GitHub/Chronous Project/scheduler-service/src/main/java/com/airtribe/chronos/scheduler/consumer/JobLifecycleConsumer.java
-/Users/sameergupta/Documents/GitHub/Chronous Project/scheduler-service/src/main/java/com/airtribe/chronos/scheduler/dedupe/ProcessedEventEntity.java
-/Users/sameergupta/Documents/GitHub/Chronous Project/scheduler-service/src/main/java/com/airtribe/chronos/scheduler/dedupe/ProcessedEventRepository.java
-/Users/sameergupta/Documents/GitHub/Chronous Project/scheduler-service/src/main/java/com/airtribe/chronos/scheduler/domain/ScheduleEntity.java
-/Users/sameergupta/Documents/GitHub/Chronous Project/scheduler-service/src/main/java/com/airtribe/chronos/scheduler/domain/ScheduleRepository.java
-/Users/sameergupta/Documents/GitHub/Chronous Project/scheduler-service/src/main/java/com/airtribe/chronos/scheduler/scan/DueJobScanner.java

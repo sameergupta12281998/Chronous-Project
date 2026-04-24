@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notification_db}
+    username: ${NOTIFICATION_DB_USER:chronos}
+    password: ${NOTIFICATION_DB_PASSWORD:chronos}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+
+server:
+  port: ${NOTIFICATION_PORT:8085}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+chronos:
+  security:
+    jwt:
+      secret: ${CHRONOS_JWT_SECRET:change-me-please-this-is-a-development-only-secret-32+}
+      issuer: chronos-identity
+      ttl-seconds: 3600
+
+logging:
+  pattern:
+    level: "%5p [corr=%X{correlationId:-}]"

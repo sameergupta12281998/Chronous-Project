@@ -1,0 +1,291 @@
+{
+  "info": {
+    "_postman_id": "c4ea6f1a-1d9c-49d9-9d6e-chronos00001",
+    "name": "Chronos",
+    "description": "End-to-end test collection for the Chronos distributed scheduler. Set the {{base_url}}, {{username}}, and {{password}} env vars then run the 'Happy Path' folder.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": { "type": "text/javascript", "exec": [
+        "if (!pm.environment.get('idempotency_key')) {",
+        "  pm.environment.set('idempotency_key', 'pm-' + Date.now());",
+        "}"
+      ] }
+    }
+  ],
+  "item": [
+    {
+      "name": "Gateway Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/register", "host": ["{{base_url}}"], "path": ["api","v1","auth","register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('status is 201 or 409', () => pm.expect([201,409]).to.include(pm.response.code));",
+              "if (pm.response.code === 201) {",
+              "  const j = pm.response.json();",
+              "  pm.test('registered id present', () => pm.expect(j.id).to.be.a('string'));",
+              "  pm.environment.set('user_id', j.id);",
+              "}"
+            ] }
+          }]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api","v1","auth","login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}" }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('accessToken present', () => pm.expect(j.accessToken).to.be.a('string'));",
+              "pm.test('tokenType=Bearer', () => pm.expect(j.tokenType).to.eql('Bearer'));",
+              "pm.environment.set('access_token', j.accessToken);",
+              "pm.environment.set('user_id', j.userId);"
+            ] }
+          }]
+        },
+        {
+          "name": "Login (wrong password) → 401",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api","v1","auth","login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"wrong-password\"\n}" }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('401', () => pm.response.to.have.status(401));"
+            ] }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Gateway Jobs",
+      "item": [
+        {
+          "name": "Create Job (with Idempotency-Key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idempotency_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/jobs", "host": ["{{base_url}}"], "path": ["api","v1","jobs"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"pm-job\",\n  \"taskType\": \"LOG\",\n  \"payload\": \"{\\\"msg\\\":\\\"hi\\\"}\",\n  \"scheduleType\": \"ONE_TIME\",\n  \"scheduledAt\": \"{{scheduled_at}}\",\n  \"maxAttempts\": 3\n}" }
+          },
+          "event": [
+            { "listen": "prerequest", "script": { "exec": [
+              "// Schedule 5 seconds in the future",
+              "pm.environment.set('scheduled_at', new Date(Date.now() + 5000).toISOString());"
+            ] }},
+            { "listen": "test", "script": { "exec": [
+              "pm.test('201 first time', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.environment.set('job_id', j.id);"
+            ] }}
+          ]
+        },
+        {
+          "name": "Create Job — idempotent replay → 200, same id",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idempotency_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/jobs", "host": ["{{base_url}}"], "path": ["api","v1","jobs"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"pm-job\",\n  \"taskType\": \"LOG\",\n  \"payload\": \"{\\\"msg\\\":\\\"hi\\\"}\",\n  \"scheduleType\": \"ONE_TIME\",\n  \"scheduledAt\": \"{{scheduled_at}}\",\n  \"maxAttempts\": 3\n}" }
+          },
+          "event": [{
+            "listen": "test", "script": { "exec": [
+              "pm.test('200 on replay', () => pm.response.to.have.status(200));",
+              "pm.test('same id', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('job_id')));"
+            ] }
+          }]
+        },
+        {
+          "name": "Get Job by id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/jobs/{{job_id}}", "host": ["{{base_url}}"], "path": ["api","v1","jobs","{{job_id}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "pm.test('id matches', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('job_id')));"
+          ] }}]
+        },
+        {
+          "name": "List Jobs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/jobs?page=0&size=20", "host": ["{{base_url}}"], "path": ["api","v1","jobs"], "query": [{"key":"page","value":"0"},{"key":"size","value":"20"}] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ] }}]
+        },
+        {
+          "name": "Reschedule (POST alias)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/jobs/{{job_id}}/reschedule", "host": ["{{base_url}}"], "path": ["api","v1","jobs","{{job_id}}","reschedule"] },
+            "body": { "mode": "raw", "raw": "{\n  \"scheduledAt\": \"{{rescheduled_at}}\"\n}" }
+          },
+          "event": [
+            { "listen": "prerequest", "script": { "exec": [
+              "pm.environment.set('rescheduled_at', new Date(Date.now() + 60000).toISOString());"
+            ] }},
+            { "listen": "test", "script": { "exec": [
+              "pm.test('200', () => pm.response.to.have.status(200));"
+            ] }}
+          ]
+        },
+        {
+          "name": "Cancel (POST alias)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/v1/jobs/{{job_id}}/cancel", "host": ["{{base_url}}"], "path": ["api","v1","jobs","{{job_id}}","cancel"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "pm.test('status CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));"
+          ] }}]
+        },
+        {
+          "name": "Validation: scheduledAt in past → 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/jobs", "host": ["{{base_url}}"], "path": ["api","v1","jobs"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"bad\",\n  \"taskType\": \"LOG\",\n  \"payload\": \"{}\",\n  \"scheduleType\": \"ONE_TIME\",\n  \"scheduledAt\": \"2000-01-01T00:00:00Z\",\n  \"maxAttempts\": 3\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400', () => pm.response.to.have.status(400));"
+          ] }}]
+        },
+        {
+          "name": "Auth: no token → 401",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{base_url}}/api/v1/jobs/anything", "host": ["{{base_url}}"], "path": ["api","v1","jobs","anything"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401', () => pm.response.to.have.status(401));"
+          ] }}]
+        }
+      ]
+    },
+    {
+      "name": "Gateway Executions",
+      "item": [
+        {
+          "name": "List by jobId (via /jobs/{id}/executions)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/jobs/{{job_id}}/executions", "host": ["{{base_url}}"], "path": ["api","v1","jobs","{{job_id}}","executions"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "if (j.items && j.items.length > 0) pm.environment.set('execution_id', j.items[0].id);"
+          ] }}]
+        },
+        {
+          "name": "Get Execution by id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/executions/{{execution_id}}", "host": ["{{base_url}}"], "path": ["api","v1","executions","{{execution_id}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.environment.get('execution_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "} else {",
+            "  pm.test('skipped (no execution yet)', () => pm.expect(true).to.be.true);",
+            "}"
+          ] }}]
+        },
+        {
+          "name": "List w/o jobId → 400",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/executions", "host": ["{{base_url}}"], "path": ["api","v1","executions"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400', () => pm.response.to.have.status(400));"
+          ] }}]
+        }
+      ]
+    },
+    {
+      "name": "Gateway Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/notifications?page=0&size=20", "host": ["{{base_url}}"], "path": ["api","v1","notifications"], "query": [{"key":"page","value":"0"},{"key":"size","value":"20"}] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "if (j.items && j.items.length > 0) pm.environment.set('notification_id', j.items[0].id);"
+          ] }}]
+        },
+        {
+          "name": "Get Notification by id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/notifications/{{notification_id}}", "host": ["{{base_url}}"], "path": ["api","v1","notifications","{{notification_id}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.environment.get('notification_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "} else {",
+            "  pm.test('skipped (no notification yet)', () => pm.expect(true).to.be.true);",
+            "}"
+          ] }}]
+        }
+      ]
+    },
+    {
+      "name": "Ops Health",
+      "item": [
+        { "name": "Gateway",       "request": { "method": "GET", "auth": {"type":"noauth"}, "url": "{{base_url}}/actuator/health" }, "event":[{"listen":"test","script":{"exec":["pm.test('UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"]}}] },
+        { "name": "Identity",      "request": { "method": "GET", "auth": {"type":"noauth"}, "url": "http://localhost:8081/actuator/health" }, "event":[{"listen":"test","script":{"exec":["pm.test('UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"]}}] },
+        { "name": "Job",           "request": { "method": "GET", "auth": {"type":"noauth"}, "url": "http://localhost:8082/actuator/health" }, "event":[{"listen":"test","script":{"exec":["pm.test('UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"]}}] },
+        { "name": "Scheduler",     "request": { "method": "GET", "auth": {"type":"noauth"}, "url": "http://localhost:8083/actuator/health" }, "event":[{"listen":"test","script":{"exec":["pm.test('UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"]}}] },
+        { "name": "Execution",     "request": { "method": "GET", "auth": {"type":"noauth"}, "url": "http://localhost:8084/actuator/health" }, "event":[{"listen":"test","script":{"exec":["pm.test('UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"]}}] },
+        { "name": "Notification",  "request": { "method": "GET", "auth": {"type":"noauth"}, "url": "http://localhost:8085/actuator/health" }, "event":[{"listen":"test","script":{"exec":["pm.test('UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"]}}] }
+      ]
+    }
+  ]
+}

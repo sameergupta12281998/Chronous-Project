@@ -1,3 +1,0 @@
-com/airtribe/chronos/gateway/ApiGatewayApplication.class
-com/airtribe/chronos/gateway/security/JwtValidationGlobalFilter.class
-com/airtribe/chronos/gateway/config/GatewayConfig.class

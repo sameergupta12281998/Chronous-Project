@@ -1,0 +1,12 @@
+target/
+.mvn/
+*.iml
+.idea/
+.vscode/
+.DS_Store
+*.log
+.env
+build/
+out/
+HELP.md
+.flattened-pom.xml
