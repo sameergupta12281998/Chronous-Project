@@ -94,6 +94,7 @@ services:
       EXECUTION_DB_USER: chronos
       EXECUTION_DB_PASSWORD: chronos
       KAFKA_BOOTSTRAP: kafka:9092
+      CHRONOS_JWT_SECRET: ${CHRONOS_JWT_SECRET:-change-me-please-this-is-a-development-only-secret-32+}
     ports:
       - "8084:8084"
 
